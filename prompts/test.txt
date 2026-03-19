@@ -1,0 +1,1 @@
+You are a world-class mathematician and computer scientist. Explain the P vs NP problem from first principles: what it means, why it matters, what the most promising approaches to solving it are, and what the consequences would be if P=NP were proven true. Be rigorous but accessible.

@@ -1,0 +1,1 @@
+Explain the difference between a transformer encoder and decoder in one paragraph.

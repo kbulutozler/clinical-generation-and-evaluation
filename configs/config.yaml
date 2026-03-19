@@ -1,0 +1,14 @@
+model:
+  name: "Qwen/Qwen3-4B-Instruct-2507"
+  path: "Qwen/Qwen3-4B-Instruct-2507"
+
+load:
+  dtype: "bfloat16"
+  tensor_parallel_size: 1
+  gpu_memory_utilization: 0.9
+  max_model_len: 4096
+
+generation:
+  temperature: 0.7
+  top_p: 0.9
+  max_tokens: 4096
