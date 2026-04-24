@@ -18,4 +18,4 @@ cd "$REPO_DIR"
 
 mkdir -p logs
 
-apptainer exec --nv $SCRATCH/containers/vllm.sif python run.py "$1"
+apptainer exec --nv --env HF_HOME=$HF_HOME --env CC=gcc $SCRATCH/containers/vllm.sif python3 run_chat_batch.py "$1"

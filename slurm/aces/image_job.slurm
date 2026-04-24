@@ -18,4 +18,4 @@ cd "$REPO_DIR"
 
 mkdir -p logs
 
-singularity exec --nv --env HF_HOME=$HF_HOME $PROJ_USER/containers/vllm.sif python3 run.py "$1"
+singularity exec --nv --env HF_HOME=$HF_HOME $PROJ_USER/containers/vllm.sif python3 run_chat_batch.py "$1"

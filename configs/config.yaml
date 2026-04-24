@@ -1,14 +1,139 @@
-model:
-  name: "Qwen/Qwen3-4B-Instruct-2507"
-  path: "Qwen/Qwen3-4B-Instruct-2507"
+active_model: "Qwen/Qwen3.5-27B-FP8"
+active_eval_model: "Qwen/Qwen3.5-27B-FP8"
+active_model_thinking: True
+models:
+  Qwen/Qwen3.5-27B-FP8:
+    modelname: "Qwen3.5-27B-FP8"
+    path: "Qwen/Qwen3.5-27B-FP8"
+    load:
+      dtype: "auto"
+      tensor_parallel_size: 1
+      gpu_memory_utilization: 0.9
+      max_model_len: 32768
+    generation:
+      thinking:
+        temperature: 1.0
+        top_p: 0.95
+        top_k: 20
+        min_p: 0.0
+        presence_penalty: 1.5
+        repetition_penalty: 1.0
+        max_tokens: null
+      non_thinking:
+        temperature: 0.7
+        top_p: 0.8
+        top_k: 20
+        min_p: 0.0
+        presence_penalty: 1.5
+        repetition_penalty: 1.0
+        max_tokens: null
 
-load:
-  dtype: "bfloat16"
-  tensor_parallel_size: 1
-  gpu_memory_utilization: 0.9
-  max_model_len: 4096
+  Qwen/Qwen3.5-9B:
+    modelname: "Qwen3.5-9B"
+    path: "Qwen/Qwen3.5-9B"
+    load:
+      dtype: "bfloat16"
+      tensor_parallel_size: 1
+      gpu_memory_utilization: 0.9
+      max_model_len: 32768
+    generation:
+      thinking:
+        temperature: 1.0
+        top_p: 0.95
+        top_k: 20
+        min_p: 0.0
+        presence_penalty: 1.5
+        repetition_penalty: 1.0
+        max_tokens: null
+      non_thinking:
+        temperature: 0.7
+        top_p: 0.8
+        top_k: 20
+        min_p: 0.0
+        presence_penalty: 1.5
+        repetition_penalty: 1.0
+        max_tokens: null
 
-generation:
-  temperature: 0.7
-  top_p: 0.9
-  max_tokens: 4096
+  Qwen/Qwen3.5-4B:
+    modelname: "Qwen3.5-4B"
+    path: "Qwen/Qwen3.5-4B"
+    load:
+      dtype: "bfloat16"
+      tensor_parallel_size: 1
+      gpu_memory_utilization: 0.9
+      max_model_len: 32768
+    generation:
+      thinking:
+        temperature: 1.0
+        top_p: 0.95
+        top_k: 20
+        min_p: 0.0
+        presence_penalty: 1.5
+        repetition_penalty: 1.0
+        max_tokens: null
+      non_thinking:
+        temperature: 0.7
+        top_p: 0.8
+        top_k: 20
+        min_p: 0.0
+        presence_penalty: 1.5
+        repetition_penalty: 1.0
+        max_tokens: null
+
+  Qwen/Qwen3.5-2B:
+    modelname: "Qwen3.5-2B"
+    path: "Qwen/Qwen3.5-2B"
+    load:
+      dtype: "bfloat16"
+      tensor_parallel_size: 1
+      gpu_memory_utilization: 0.9
+      max_model_len: 32768
+    generation:
+      thinking:
+        temperature: 1.0
+        top_p: 0.95
+        top_k: 20
+        min_p: 0.0
+        presence_penalty: 1.5
+        repetition_penalty: 1.0
+        max_tokens: null
+      non_thinking:
+        temperature: 1.0
+        top_p: 1.0
+        top_k: 20
+        min_p: 0.0
+        presence_penalty: 2.0
+        repetition_penalty: 1.0
+        max_tokens: null
+
+  Qwen/Qwen3.5-0.8B:
+    modelname: "Qwen3.5-0.8B"
+    path: "Qwen/Qwen3.5-0.8B"
+    load:
+      dtype: "bfloat16"
+      tensor_parallel_size: 1
+      gpu_memory_utilization: 0.9
+      max_model_len: 32768
+    generation:
+      thinking:
+        temperature: 1.0
+        top_p: 0.95
+        top_k: 20
+        min_p: 0.0
+        presence_penalty: 1.5
+        repetition_penalty: 1.0
+        max_tokens: null
+      non_thinking:
+        temperature: 1.0
+        top_p: 1.0
+        top_k: 20
+        min_p: 0.0
+        presence_penalty: 2.0
+        repetition_penalty: 1.0
+        max_tokens: null
+
+datasets:
+  aci_bench:
+    anvil: "/anvil/projects/x-cis251377/x-kozler/data/aci-bench-main"
+    aces: "/scratch/group/p.cis251377.000/u.ko341547/data/aci-bench-main"
+    local: "~/Dropbox/repositories/aci-bench"

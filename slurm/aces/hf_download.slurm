@@ -14,7 +14,4 @@ set -euo pipefail
 
 source "$HOME/.bash_env"
 
-module load Miniconda3/23.10.0-1
-eval "$(conda shell.bash hook)"
-conda activate hf-download
-hf download "$1"
+uv run --with huggingface_hub huggingface-cli download "$1"
