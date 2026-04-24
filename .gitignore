@@ -1,7 +1,6 @@
 outputs/
 logs/
 .claude/
-CLAUDE.md
 dotfiles/
 __pycache__/
 *.py[cod]

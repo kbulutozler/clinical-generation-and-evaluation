@@ -15,7 +15,9 @@ clinical-generation-and-evaluation/
 ├── configs/
 │   └── config.yaml                  # active model, per-model load/generation hparams
 ├── prompts/                         # prompt files per task
-│   ├── example.txt                  # simple .txt prompts
+│   ├── examples/                    # simple example prompts
+│   ├── evaluation/                  # LLM-as-judge prompt templates
+│   │   └── eval_prompt_template.json
 │   └── aci_bench/
 │       └── <split>_<n>shot/         # one .json file per encounter
 │           └── <encounter_id>.json
@@ -198,19 +200,21 @@ make install-aces-keys
 Edited locally, pushed to HPC. Exists on both ends.
 
 ```yaml
-active_model: "Qwen/Qwen3.5-4B"
-active_eval_model: "Qwen/Qwen3.5-27B-FP8"
+active_model: "Qwen/Qwen3.5-27B"
+active_eval_model: "Qwen/Qwen3.5-27B"
 active_model_thinking: true
 
 models:
-  Qwen/Qwen3.5-4B:
-    modelname: "Qwen3.5-4B"
-    path: "Qwen/Qwen3.5-4B"
+  Qwen/Qwen3.5-27B:
+    modelname: "Qwen3.5-27B"
+    path: "Qwen/Qwen3.5-27B"
     load:
       dtype: "bfloat16"
       tensor_parallel_size: 1
       gpu_memory_utilization: 0.9
       max_model_len: 32768
+      max_cudagraph_capture_size: 16   # optional: cap CUDA graph batch size
+      enforce_eager: false             # optional: disable CUDA graphs entirely
     generation:
       thinking:
         temperature: 1.0

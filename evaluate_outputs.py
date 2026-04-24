@@ -10,154 +10,6 @@ from utils import load_config, extract_thinking
 
 CONFIG_PATH = Path("configs/config.yaml")
 
-SYSTEM_PROMPT = """\
-# Clinician Evaluation Guide: LLM-Generated Clinical Note Review
-
-## Your Role
-You are reviewing an AI-generated clinical note. Your job is to identify errors that could impact patient care. You will be given three documents:
-
-- **Source Document** — the original doctor-patient conversation or clinical record
-- **Reference Note** — a gold standard note written by a clinician
-- **AI-Generated Note** — the note produced by the AI system you are evaluating
-
-Your evaluation has two parts: (1) checking the AI note for **fabrications and negations**, and (2) checking for **omissions**.
-
----
-
-## PART 1: Hallucination Review
-### Task
-Read the AI-Generated Note sentence by sentence. For each sentence, check whether it is fully supported by the Source Document.
-
-### Error Types to Look For
-
-| Error Type | Definition | Example |
-|---|---|---|
-| **Fabrication** | The AI states something that was never mentioned in the source document | Source says patient has a cough. AI note says patient has a cough and fever — fever was never mentioned |
-| **Negation** | The AI contradicts a fact stated in the source document | Source says patient IS allergic to penicillin. AI note says patient has NO known allergies |
-| **Causality** | The AI implies a cause-effect relationship not explicitly stated in the source | Source says patient has diabetes and fatigue. AI note says fatigue is caused by diabetes — this was not stated |
-
-### For Each Sentence in the AI Note, Ask:
-> "Is every claim in this sentence directly supported by the source document?"
-
-- If **yes** → mark as correct, move on
-- If **no** → flag the sentence, identify the error type, and note what is wrong
-
-### Severity Rating
-For every flagged sentence, rate the severity:
-
-| Rating | Definition |
-|---|---|
-| **Major** | If left uncorrected, this error could change the diagnosis, treatment plan, or directly harm the patient |
-| **Minor** | The error is inaccurate but would not meaningfully change clinical management |
-
-### Recording Your Findings — Part 1
-
-For each error found, fill in the following:
-
-```
-Sentence flagged: [copy the problematic sentence here]
-Error type: [Fabrication / Negation / Causality]
-What is wrong: [explain in one or two sentences what the AI got wrong]
-Severity: [Major / Minor]
-Supporting evidence: [quote or reference the part of the source document that contradicts or fails to support the AI sentence]
-```
-
----
-
-## PART 2: Omission Review
-### Task
-Now read the Source Document sentence by sentence. For each clinically relevant piece of information, check whether it appears in the AI-Generated Note.
-
-### What Counts as Clinically Relevant?
-Include the following if mentioned in the source:
-- Current symptoms, complaints, or reason for visit
-- Past medical history, medications, allergies
-- Family history, social history (smoking, alcohol, occupation)
-- Examination findings
-- Diagnoses or clinical impressions
-- Treatment plans, prescriptions, referrals, follow-up instructions
-
-### For Each Relevant Sentence in the Source, Ask:
-> "Is this information captured somewhere in the AI note?"
-
-- If **yes** → mark as present, move on
-- If **no** → flag it as an omission
-
-### Severity Rating
-Use the same scale:
-
-| Rating | Definition |
-|---|---|
-| **Major** | The missing information could change the diagnosis, treatment, or continuity of care if a colleague read only this note |
-| **Minor** | The missing information is relevant but its absence would not meaningfully affect clinical management |
-
-### Recording Your Findings — Part 2
-
-For each omission found, fill in the following:
-
-```
-Information omitted: [copy or summarize the missing information from the source]
-Section it should appear in: [History / Medications / Examination / Assessment / Plan / Other]
-Severity: [Major / Minor]
-Why it matters: [briefly explain the clinical significance of this omission]
-```
-
----
-
-## PART 3: Overall Assessment
-After completing both parts, provide a brief overall judgment:
-
-```
-Total hallucinations found: ___
-  - Major: ___
-  - Minor: ___
-
-Total omissions found: ___
-  - Major: ___
-  - Minor: ___
-
-Overall safety rating:
-[ ] Safe for clinical use as-is
-[ ] Safe with minor corrections
-[ ] Requires significant revision before clinical use
-[ ] Unsafe — do not use without complete review
-
-Additional comments:
-[Any patterns you noticed, sections that were consistently problematic, or anything else relevant]
-```
-
----
-
-## Important Reminders
-- **Only use the Source Document** to judge hallucinations — do not rely on your own clinical knowledge to fill in gaps
-- **Do not penalize the AI** for paraphrasing or summarizing, as long as the meaning is preserved and nothing is added or contradicted
-- **If you are unsure** whether something is an error, mark it as flagged with a note explaining your uncertainty — a senior clinician will review these cases
-- **Focus on meaning, not wording** — a sentence can be phrased differently from the source and still be correct
-
----
-
-## Quick Reference Card
-
-| Question | If Yes | If No |
-|---|---|---|
-| Is this AI sentence fully supported by the source? | Mark correct | Flag as hallucination |
-| Is this a fabricated claim? | Fabrication error | — |
-| Does the AI contradict the source? | Negation error | — |
-| Is this clinically relevant source information in the AI note? | Mark present | Flag as omission |
-| Could this error change patient management? | Major | Minor |"""
-
-USER_PROMPT_TEMPLATE = """\
-Here are the three documents for your evaluation:
-
-**Source Document:**
-{sourcedoc}
-
-**Reference Note:**
-{sourcetarget}
-
-**AI-Generated Note:**
-{generated_note}"""
-
 
 def fmt_time(seconds):
     m = int(seconds) // 60
@@ -166,22 +18,23 @@ def fmt_time(seconds):
 
 
 def main():
-    if len(sys.argv) not in (2, 3):
-        print("Usage: python3 evaluate_outputs.py <exp_dir> [encounter_id]")
-        print("  e.g. python3 evaluate_outputs.py outputs/20260423/Qwen3.5-4B/aci_bench/clinicalnlp_taskB_test1_0shot")
+    if len(sys.argv) != 3:
+        print("Usage: python3 evaluate_outputs.py <exp_dir> <eval_prompt_template>")
+        print("  e.g. python3 evaluate_outputs.py outputs/20260423/Qwen3.5-4B/aci_bench/clinicalnlp_taskB_test1_0shot prompts/evaluation/eval_prompt_template.json")
         sys.exit(1)
 
     exp_dir = Path(sys.argv[1])
-    encounter_id_filter = sys.argv[2] if len(sys.argv) == 3 else None
+    eval_prompt_path = Path(sys.argv[2])
 
-    if encounter_id_filter:
-        target = exp_dir / encounter_id_filter
-        if not target.is_dir():
-            print(f"No directory found for encounter_id '{encounter_id_filter}' in {exp_dir}")
-            sys.exit(1)
-        enc_dirs = [target]
-    else:
-        enc_dirs = sorted([d for d in exp_dir.iterdir() if d.is_dir()])
+    if not eval_prompt_path.exists():
+        print(f"Eval prompt template not found: {eval_prompt_path}")
+        sys.exit(1)
+
+    eval_prompt = json.loads(eval_prompt_path.read_text())
+    system_prompt = eval_prompt["messages"][0]["content"]
+    user_template = eval_prompt["messages"][1]["content"]
+
+    enc_dirs = sorted([d for d in exp_dir.iterdir() if d.is_dir()])
 
     if not enc_dirs:
         print(f"No encounter directories found in {exp_dir}")
@@ -205,13 +58,13 @@ def main():
             print(f"[WARN] {enc_dir.name}: missing required files — skipping")
             continue
 
-        user_content = USER_PROMPT_TEMPLATE.format(
+        user_content = user_template.format(
             sourcedoc=sourcedoc_path.read_text().strip(),
             sourcetarget=sourcetarget_path.read_text().strip(),
             generated_note=output_path.read_text().strip(),
         )
         all_messages.append([
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_content},
         ])
         valid_dirs.append(enc_dir)
@@ -221,13 +74,17 @@ def main():
         sys.exit(1)
 
     load_start = time.time()
-    llm = LLM(
+    llm_kwargs = dict(
         model=eval_model_cfg["path"],
         dtype=eval_model_cfg["load"]["dtype"],
         tensor_parallel_size=eval_model_cfg["load"]["tensor_parallel_size"],
         gpu_memory_utilization=eval_model_cfg["load"]["gpu_memory_utilization"],
         max_model_len=eval_model_cfg["load"]["max_model_len"],
+        enforce_eager=eval_model_cfg["load"].get("enforce_eager", False),
     )
+    if "max_cudagraph_capture_size" in eval_model_cfg["load"]:
+        llm_kwargs["max_cudagraph_capture_size"] = eval_model_cfg["load"]["max_cudagraph_capture_size"]
+    llm = LLM(**llm_kwargs)
     load_time = fmt_time(time.time() - load_start)
 
     sampling_params = SamplingParams(
@@ -249,6 +106,7 @@ def main():
     batch_metadata = {
         "timestamp": timestamp,
         "eval_model": eval_model_name,
+        "eval_prompt": str(eval_prompt_path),
         "thinking": enable_thinking,
         "load": eval_model_cfg["load"],
         "generation": gen,

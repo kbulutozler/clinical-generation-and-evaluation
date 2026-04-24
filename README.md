@@ -42,11 +42,13 @@ Outputs saved to `outputs/YYYYMMDD/<modelname>/<dataset>/<split>/`:
 Loads the active eval model from config and evaluates generated notes in an output directory.
 
 ```bash
-python3 evaluate_outputs.py <exp_dir> [encounter_id]
+python3 evaluate_outputs.py <exp_dir> <eval_prompt_template>
 ```
 
+The eval prompt template is a JSON file under `prompts/evaluation/` (e.g. `prompts/evaluation/eval_prompt_template.json`) defining the system prompt and a user message with `{sourcedoc}`, `{sourcetarget}`, and `{generated_note}` placeholders.
+
 Reads `sourcedoc.txt`, `sourcetarget.txt`, and `output.txt` per encounter. Writes:
-- `eval_output.txt` — structured evaluation (hallucinations + omissions)
+- `eval_output.txt` — structured evaluation (hallucinations + omissions + score)
 - `eval_thinking.txt` — eval model thinking trace (if present)
 - `_eval_batch_metadata.json` — batch-level metadata
 
@@ -66,19 +68,21 @@ Reads `sourcedoc.txt`, `sourcetarget.txt`, and `output.txt` per encounter. Write
 ## Configuration (`configs/config.yaml`)
 
 ```yaml
-active_model: "Qwen/Qwen3.5-27B-FP8"      # used by run_chat_batch.py
-active_eval_model: "Qwen/Qwen3.5-27B-FP8"  # used by evaluate_outputs.py
+active_model: "Qwen/Qwen3.5-27B"           # used by run_chat_batch.py
+active_eval_model: "Qwen/Qwen3.5-27B"      # used by evaluate_outputs.py
 active_model_thinking: true                 # toggles thinking vs non_thinking hparams
 
 models:
-  Qwen/Qwen3.5-27B-FP8:
-    modelname: "Qwen3.5-27B-FP8"           # used for output directory naming
-    path: "Qwen/Qwen3.5-27B-FP8"           # resolved via HF_HOME on HPC
+  Qwen/Qwen3.5-27B:
+    modelname: "Qwen3.5-27B"               # used for output directory naming
+    path: "Qwen/Qwen3.5-27B"              # resolved via HF_HOME on HPC
     load:
-      dtype: "auto"
+      dtype: "bfloat16"
       tensor_parallel_size: 1
       gpu_memory_utilization: 0.9
       max_model_len: 32768
+      max_cudagraph_capture_size: 16       # optional: cap CUDA graph batch size (workaround for hybrid models)
+      enforce_eager: false                 # optional: disable CUDA graphs entirely
     generation:
       thinking:   { temperature: 1.0, top_p: 0.95, top_k: 20, ... }
       non_thinking: { temperature: 0.7, top_p: 0.8,  top_k: 20, ... }

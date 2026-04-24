@@ -49,13 +49,17 @@ def main():
     gen = model["generation"]["thinking" if enable_thinking else "non_thinking"]
 
     load_start = time.time()
-    llm = LLM(
+    llm_kwargs = dict(
         model=model["path"],
         dtype=model["load"]["dtype"],
         tensor_parallel_size=model["load"]["tensor_parallel_size"],
         gpu_memory_utilization=model["load"]["gpu_memory_utilization"],
         max_model_len=model["load"]["max_model_len"],
+        enforce_eager=model["load"].get("enforce_eager", False),
     )
+    if "max_cudagraph_capture_size" in model["load"]:
+        llm_kwargs["max_cudagraph_capture_size"] = model["load"]["max_cudagraph_capture_size"]
+    llm = LLM(**llm_kwargs)
     load_time = fmt_time(time.time() - load_start)
 
     sampling_params = SamplingParams(

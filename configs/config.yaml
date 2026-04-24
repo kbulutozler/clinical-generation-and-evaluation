@@ -1,15 +1,16 @@
-active_model: "Qwen/Qwen3.5-27B-FP8"
-active_eval_model: "Qwen/Qwen3.5-27B-FP8"
+active_model: "Qwen/Qwen3.5-27B"
+active_eval_model: "Qwen/Qwen3.5-27B"
 active_model_thinking: True
 models:
-  Qwen/Qwen3.5-27B-FP8:
-    modelname: "Qwen3.5-27B-FP8"
-    path: "Qwen/Qwen3.5-27B-FP8"
+  Qwen/Qwen3.5-27B:
+    modelname: "Qwen3.5-27B"
+    path: "Qwen/Qwen3.5-27B"
     load:
-      dtype: "auto"
+      dtype: "bfloat16"
       tensor_parallel_size: 1
       gpu_memory_utilization: 0.9
       max_model_len: 32768
+      max_cudagraph_capture_size: 64
     generation:
       thinking:
         temperature: 1.0
