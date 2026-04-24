@@ -15,6 +15,6 @@ set -euo pipefail
 source "$HOME/.bash_env"
 
 mkdir -p $SCRATCH/containers
-mkdir -p $PROJ_USER/repositories/any-llm-inference/logs
+mkdir -p $PROJ_USER/repositories/clinical-generation-and-evaluation/logs
 
 apptainer pull $SCRATCH/containers/vllm.sif docker://vllm/vllm-openai:v0.17.1

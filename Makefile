@@ -1,9 +1,9 @@
 ANVIL_USER     := x-kozler
 ANVIL_HOST     := anvil.rcac.purdue.edu
-ANVIL_PATH     := /anvil/projects/x-cis251377/x-kozler/repositories/any-llm-inference/
+ANVIL_PATH     := /anvil/projects/x-cis251377/x-kozler/repositories/clinical-generation-and-evaluation/
 
 ACES_HOST      := aces
-ACES_PATH      := /scratch/group/p.cis251377.000/u.ko341547/repositories/any-llm-inference/
+ACES_PATH      := /scratch/group/p.cis251377.000/u.ko341547/repositories/clinical-generation-and-evaluation/
 
 LOCAL_PATH     := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 DOTFILES_ACES  := $(LOCAL_PATH)dotfiles/aces

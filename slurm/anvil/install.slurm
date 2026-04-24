@@ -16,7 +16,7 @@ set -euo pipefail
 source "$HOME/.bash_env"
 source "$(conda info --base)/etc/profile.d/conda.sh"
 
-cd $PROJ_USER/repositories/any-llm-inference
+cd $PROJ_USER/repositories/clinical-generation-and-evaluation
 mkdir -p logs
 
 conda activate vllm
