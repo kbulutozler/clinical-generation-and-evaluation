@@ -91,3 +91,16 @@ datasets:
 ```
 
 Edit locally, push to HPC with `make push-anvil` or `make push-aces`.
+
+---
+
+## vLLM Image Alias (HPC)
+
+- **Anvil:**
+  ```bash
+  alias vllm="apptainer exec --nv --env HF_HOME=$HF_HOME --env CC=gcc $SCRATCH/containers/vllm.sif"
+  ```
+- **ACES:**
+  ```bash
+  alias vllm="singularity exec --nv --env HF_HOME=$HF_HOME $PROJ_USER/containers/vllm.sif"
+  ```
