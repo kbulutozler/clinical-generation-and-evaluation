@@ -6,7 +6,7 @@ from pathlib import Path
 
 from vllm import LLM, SamplingParams
 
-from utils import load_config, get_model_config, extract_thinking
+from utils import load_config, get_model_config, build_llm_kwargs, extract_thinking
 
 CONFIG_PATH = Path("configs/config.yaml")
 OUTPUTS_DIR = Path("outputs")
@@ -48,17 +48,8 @@ def main():
 
     gen = model["generation"]["thinking" if enable_thinking else "non_thinking"]
 
+    llm_kwargs = build_llm_kwargs(model)
     load_start = time.time()
-    llm_kwargs = dict(
-        model=model["path"],
-        dtype=model["load"]["dtype"],
-        tensor_parallel_size=model["load"]["tensor_parallel_size"],
-        gpu_memory_utilization=model["load"]["gpu_memory_utilization"],
-        max_model_len=model["load"]["max_model_len"],
-        enforce_eager=model["load"].get("enforce_eager", False),
-    )
-    if "max_cudagraph_capture_size" in model["load"]:
-        llm_kwargs["max_cudagraph_capture_size"] = model["load"]["max_cudagraph_capture_size"]
     llm = LLM(**llm_kwargs)
     load_time = fmt_time(time.time() - load_start)
 

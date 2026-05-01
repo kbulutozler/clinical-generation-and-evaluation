@@ -4,7 +4,7 @@ import json
 import random
 from pathlib import Path
 
-from utils import load_config, get_dataset_path
+from utils import load_config, get_local_dataset_path
 
 CONFIG_PATH = Path("configs/config.yaml")
 PROMPTS_DIR = Path("prompts")
@@ -32,7 +32,6 @@ def build_messages(test_sample, shot_examples):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", required=True, help="Dataset name as defined in configs/config.yaml (e.g. aci_bench)")
-    parser.add_argument("--machine", default=None, choices=["anvil", "aces", "local"], help="Machine to resolve dataset path for (default: infer from hostname)")
     parser.add_argument("--test_split", default="clinicalnlp_taskB_test1")
     parser.add_argument("--shots", nargs="+", type=int, default=[0, 1, 2])
     parser.add_argument("--seed", type=int, default=42)
@@ -41,7 +40,7 @@ def main():
     random.seed(args.seed)
 
     config = load_config(CONFIG_PATH)
-    dataset_root = get_dataset_path(config, args.dataset, args.machine)
+    dataset_root = get_local_dataset_path(config, args.dataset)
     data_dir = dataset_root / "data" / "challenge_data"
     train = read_csv(data_dir / "train.csv")
     test = read_csv(data_dir / f"{args.test_split}.csv")
@@ -60,7 +59,7 @@ def main():
             }
             (out_dir / f"{sample['encounter_id']}.json").write_text(json.dumps(payload, indent=2))
 
-        print(f"{n_shots}-shot: {len(test)} prompts → {out_dir}")
+        print(f"{n_shots}-shot: {len(test)} prompts -> {out_dir}")
 
 
 if __name__ == "__main__":

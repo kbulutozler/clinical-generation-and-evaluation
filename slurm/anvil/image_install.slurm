@@ -8,13 +8,13 @@
 #SBATCH --output=logs/image-install-%j.out
 #SBATCH --error=logs/image-install-%j.err
 #SBATCH --mail-type=END,FAIL
-#SBATCH --mail-user=kbozler@arizona.edu
+#SBATCH --mail-user=kbulutozler@gmail.com
 
 set -euo pipefail
 
 source "$HOME/.bash_env"
 
-mkdir -p $SCRATCH/containers
-mkdir -p $PROJ_USER/repositories/clinical-generation-and-evaluation/logs
+mkdir -p "$SCRATCH/containers"
+mkdir -p "$SLURM_SUBMIT_DIR/logs"
 
-apptainer pull $SCRATCH/containers/vllm.sif docker://vllm/vllm-openai:v0.17.1
+apptainer pull "$SCRATCH/containers/vllm.sif" docker://vllm/vllm-openai:v0.17.1

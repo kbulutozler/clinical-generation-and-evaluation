@@ -1,7 +1,37 @@
-active_model: "Qwen/Qwen3.5-27B"
-active_eval_model: "Qwen/Qwen3.5-27B"
+active_model: "google/medgemma-27b-text-it"
+active_eval_model: "google/medgemma-27b-text-it"
 active_model_thinking: True
+
 models:
+  google/medgemma-27b-text-it:
+    modelname: "medgemma-27b-text-it"
+    path: "google/medgemma-27b-text-it"
+    load:
+      dtype: "bfloat16"
+      tensor_parallel_size: 1
+      gpu_memory_utilization: 0.9
+      max_model_len: 32768
+      max_cudagraph_capture_size: 64
+      max_num_seqs: 128
+      kv_cache_dtype: "fp8"
+    generation:
+      thinking:
+        temperature: 1.0
+        top_p: 0.95
+        top_k: 20
+        min_p: 0.0
+        presence_penalty: 1.5
+        repetition_penalty: 1.0
+        max_tokens: null
+      non_thinking:
+        temperature: 0.7
+        top_p: 0.8
+        top_k: 20
+        min_p: 0.0
+        presence_penalty: 1.5
+        repetition_penalty: 1.0
+        max_tokens: null
+
   Qwen/Qwen3.5-27B:
     modelname: "Qwen3.5-27B"
     path: "Qwen/Qwen3.5-27B"
@@ -10,7 +40,13 @@ models:
       tensor_parallel_size: 1
       gpu_memory_utilization: 0.9
       max_model_len: 32768
+      # Largest batch size captured with CUDA graphs; lower values reduce graph memory.
       max_cudagraph_capture_size: 64
+      # Max active sequences vLLM schedules; keep below available Mamba/KV cache blocks.
+      max_num_seqs: 128
+      kv_cache_dtype: "fp8"
+      calculate_kv_scales: null
+      enforce_eager: null
     generation:
       thinking:
         temperature: 1.0
@@ -107,34 +143,7 @@ models:
         repetition_penalty: 1.0
         max_tokens: null
 
-  Qwen/Qwen3.5-0.8B:
-    modelname: "Qwen3.5-0.8B"
-    path: "Qwen/Qwen3.5-0.8B"
-    load:
-      dtype: "bfloat16"
-      tensor_parallel_size: 1
-      gpu_memory_utilization: 0.9
-      max_model_len: 32768
-    generation:
-      thinking:
-        temperature: 1.0
-        top_p: 0.95
-        top_k: 20
-        min_p: 0.0
-        presence_penalty: 1.5
-        repetition_penalty: 1.0
-        max_tokens: null
-      non_thinking:
-        temperature: 1.0
-        top_p: 1.0
-        top_k: 20
-        min_p: 0.0
-        presence_penalty: 2.0
-        repetition_penalty: 1.0
-        max_tokens: null
-
 datasets:
   aci_bench:
-    anvil: "/anvil/projects/x-cis251377/x-kozler/data/aci-bench-main"
-    aces: "/scratch/group/p.cis251377.000/u.ko341547/data/aci-bench-main"
+    # Prompt building is local-only; HPC jobs consume generated prompt JSON files.
     local: "~/Dropbox/repositories/aci-bench"

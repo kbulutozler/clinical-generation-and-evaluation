@@ -11,11 +11,10 @@
 
 set -euo pipefail
 
+shopt -s expand_aliases
 source "$HOME/.bash_env"
 
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$REPO_DIR"
-
+cd "$SLURM_SUBMIT_DIR"
 mkdir -p logs
 
-apptainer exec --nv --env HF_HOME=$HF_HOME --env CC=gcc $SCRATCH/containers/vllm.sif python3 run_chat_batch.py "$1"
+vllm python3 run_chat_batch.py "$@"
