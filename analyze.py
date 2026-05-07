@@ -8,8 +8,11 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 
+from utils import load_config
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+
+REPO_ROOT = Path(__file__).resolve().parent
+CONFIG_PATH = REPO_ROOT / "configs/config.yaml"
 DEFAULT_EVAL_PROMPT_PATH = REPO_ROOT / "prompts/evaluation/eval_prompt_template.json"
 HALLUCINATION_TYPES = ("fabrication", "negation", "causality", "contextual")
 OMISSION_TYPES = ("current_issues", "pmfs", "plan")
@@ -52,21 +55,34 @@ STOPWORDS = {
 }
 
 
-RUN_ORDER = {
-    ("Qwen3.5-2B", "clinicalnlp_taskB_test1_0shot"): 0,
-    ("Qwen3.5-4B", "clinicalnlp_taskB_test1_0shot"): 1,
-    ("Qwen3.5-9B", "clinicalnlp_taskB_test1_0shot"): 2,
-    ("Qwen3.5-27B", "clinicalnlp_taskB_test1_0shot"): 3,
-    ("medgemma-27b-text-it", "clinicalnlp_taskB_test1_0shot"): 4,
-    ("medgemma-27b-text-it", "clinicalnlp_taskB_test1_1shot"): 5,
+MODEL_SIZE_B = {
+    "Qwen3.5-2B": 2.274,
+    "Qwen3.5-4B": 4.660,
+    "gemma-4-E2B-it": 5.123,
+    "gemma-4-E4B-it": 7.996,
+    "Qwen3.5-9B": 9.653,
+    "gemma-4-26B-A4B-it": 26.544,
+    "medgemma-27b-text-it": 27.000,
+    "Qwen3.5-27B": 27.781,
+    "gemma-4-31B-it": 32.682,
 }
-NEGATION_EXAMPLE_RUNS = {
-    ("Qwen3.5-4B", "clinicalnlp_taskB_test1_0shot"),
-    ("Qwen3.5-9B", "clinicalnlp_taskB_test1_0shot"),
-    ("Qwen3.5-27B", "clinicalnlp_taskB_test1_0shot"),
-    ("medgemma-27b-text-it", "clinicalnlp_taskB_test1_0shot"),
-    ("medgemma-27b-text-it", "clinicalnlp_taskB_test1_1shot"),
-}
+
+
+def model_size_b(model_name):
+    if model_name in MODEL_SIZE_B:
+        return MODEL_SIZE_B[model_name]
+    matches = re.findall(r"(\d+(?:\.\d+)?)b\b", model_name.lower())
+    return float(matches[-1]) if matches else float("inf")
+
+
+def shot_number(exp):
+    match = re.search(r"_(\d+)shot$", exp)
+    return int(match.group(1)) if match else 999
+
+
+def run_sort_key(key):
+    gen_model, exp = key
+    return (model_size_b(gen_model), gen_model.lower(), shot_number(exp), exp)
 
 
 def run_label(gen_model, exp):
@@ -149,17 +165,36 @@ def load_evaluation_system_prompt(path=DEFAULT_EVAL_PROMPT_PATH):
     return f"No system message found in `{path}`."
 
 
+def parse_eval_json(text):
+    text = str(text or "").strip()
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+
+    fence_match = re.search(r"```(?:json)?\s*(.*?)```", text, flags=re.DOTALL | re.IGNORECASE)
+    if fence_match:
+        return json.loads(fence_match.group(1).strip())
+
+    start = text.find("{")
+    end = text.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        return json.loads(text[start:end + 1])
+
+    return json.loads(text)
+
+
 def parse_eval_path(base, path):
     rel = path.relative_to(base)
     parts = rel.parts
-    # <gen_model>/aci_bench/<exp>/<encounter>/evals/Qwen3.5-27B/eval_output.txt
-    if len(parts) != 7 or parts[1] != "aci_bench" or parts[4] != "evals":
+    # <dataset>/<encounter>/<gen_model>/<testsplit_nshot>/evals/<eval_model>/eval_output.txt
+    if len(parts) != 7 or parts[4] != "evals":
         raise ValueError(f"Unexpected eval path shape: {path}")
     return {
-        "gen_model": parts[0],
-        "dataset": parts[1],
-        "exp": parts[2],
-        "encounter": parts[3],
+        "dataset": parts[0],
+        "encounter": parts[1],
+        "gen_model": parts[2],
+        "exp": parts[3],
         "eval_model": parts[5],
     }
 
@@ -167,11 +202,11 @@ def parse_eval_path(base, path):
 def load_rows(base, evaluator):
     rows = []
     bad = []
-    pattern = f"*/aci_bench/*/D2N*/evals/{evaluator}/eval_output.txt"
+    pattern = f"*/*/*/*/evals/{evaluator}/eval_output.txt"
     for path in sorted(base.glob(pattern)):
         meta = parse_eval_path(base, path)
         try:
-            data = json.loads(path.read_text())
+            data = parse_eval_json(path.read_text())
             reported_score = data.get("score")
             if not isinstance(reported_score, (int, float)):
                 raise ValueError(f"Score is not numeric: {reported_score!r}")
@@ -215,7 +250,7 @@ def group_rows(rows):
 
 
 def sorted_group_keys(grouped):
-    return sorted(grouped, key=lambda key: (RUN_ORDER.get(key, 999), key[0], key[1]))
+    return sorted(grouped, key=run_sort_key)
 
 
 def score_summary_rows(grouped, bad):
@@ -239,7 +274,7 @@ def score_summary_rows(grouped, bad):
             sum(x < 0.3 for x in scores),
             sum(x == 0.0 for x in scores),
         ])
-    for key, count in sorted(bad_counts.items(), key=lambda item: (RUN_ORDER.get(item[0], 999), item[0])):
+    for key, count in sorted(bad_counts.items(), key=lambda item: run_sort_key(item[0])):
         if key not in grouped:
             table.append([run_label(*key), 0, count, "NA", "NA", "NA", "NA", "NA", 0, 0, 0, 0, 0])
     return table
@@ -272,7 +307,7 @@ def mismatch_rows(rows, tolerance=1e-9):
         grouped[(row["gen_model"], row["exp"])].append(row)
 
     summary = []
-    for key in sorted(grouped, key=lambda key: (RUN_ORDER.get(key, 999), key[0], key[1])):
+    for key in sorted(grouped, key=run_sort_key):
         vals = grouped[key]
         diffs = [x["score_diff"] for x in vals]
         summary.append([
@@ -285,7 +320,7 @@ def mismatch_rows(rows, tolerance=1e-9):
         ])
 
     details = []
-    for row in sorted(mismatches, key=lambda x: (RUN_ORDER.get((x["gen_model"], x["exp"]), 999), x["encounter"])):
+    for row in sorted(mismatches, key=lambda x: (run_sort_key((x["gen_model"], x["exp"])), x["encounter"])):
         details.append([
             run_label(row["gen_model"], row["exp"]),
             row["encounter"],
@@ -426,11 +461,9 @@ def negation_example_rows(rows, max_per_run=2):
     counts = Counter()
     sorted_rows = sorted(
         rows,
-        key=lambda row: (RUN_ORDER.get((row["gen_model"], row["exp"]), 999), row["encounter"]),
+        key=lambda row: (run_sort_key((row["gen_model"], row["exp"])), row["encounter"]),
     )
     for row in sorted_rows:
-        if (row["gen_model"], row["exp"]) not in NEGATION_EXAMPLE_RUNS:
-            continue
         run = run_label(row["gen_model"], row["exp"])
         if counts[run] >= max_per_run:
             continue
@@ -468,28 +501,43 @@ def medgemma_shot_rows(grouped):
     return improvements, regressions
 
 
+def plot_run_label(label):
+    for shot in ("0-shot", "1-shot", "2-shot"):
+        suffix = f" {shot}"
+        if label.endswith(suffix):
+            return f"{label[:-len(suffix)]}\n{shot}"
+    return label
+
+
+def set_run_xticks(ax, x_positions, labels):
+    ax.set_xticks(x_positions)
+    ax.set_xticklabels(labels, rotation=30, ha="right", rotation_mode="anchor")
+    ax.margins(x=0.04)
+
+
 def make_plot(grouped, output_path):
     keys = sorted_group_keys(grouped)
-    labels = [run_label(*key) for key in keys]
+    labels = [plot_run_label(run_label(*key)) for key in keys]
+    x_positions = list(range(len(keys)))
     scores = [[x["score"] for x in grouped[key]] for key in keys]
     means = [mean(values) for values in scores]
 
-    fig, axes = plt.subplots(3, 2, figsize=(18, 16))
+    fig, axes = plt.subplots(3, 2, figsize=(20, 17))
     ax = axes[0][0]
-    ax.boxplot(scores, tick_labels=labels, showmeans=True)
-    ax.set_title("Qwen Evaluator Score Distribution")
+    ax.boxplot(scores, positions=x_positions, widths=0.55, showmeans=True)
+    ax.set_title("Evaluator Score Distribution")
     ax.set_ylabel("Score")
     ax.set_ylim(0, 1)
-    ax.tick_params(axis="x", rotation=35)
+    set_run_xticks(ax, x_positions, labels)
     ax.grid(axis="y", alpha=0.25)
 
     ax = axes[0][1]
-    bars = ax.bar(labels, means, color="#4C78A8")
+    bars = ax.bar(x_positions, means, width=0.72, color="#4C78A8")
     ax.set_title("Mean Score")
     ax.set_ylabel("Mean score")
     ax.set_ylim(0, 1.08)
     ax.bar_label(bars, labels=[fmt_float(value) for value in means], padding=3, fontsize=9)
-    ax.tick_params(axis="x", rotation=35)
+    set_run_xticks(ax, x_positions, labels)
     ax.grid(axis="y", alpha=0.25)
 
     ax = axes[1][0]
@@ -497,11 +545,11 @@ def make_plot(grouped, output_path):
     colors = ["#E45756", "#F58518", "#72B7B2", "#54A24B"]
     for err_type, color in zip(HALLUCINATION_TYPES, colors):
         vals = [sum(x[f"h_{err_type}"] for x in grouped[key]) / len(grouped[key]) for key in keys]
-        ax.bar(labels, vals, bottom=bottom, label=err_type, color=color)
+        ax.bar(x_positions, vals, width=0.72, bottom=bottom, label=err_type, color=color)
         bottom = [a + b for a, b in zip(bottom, vals)]
     ax.set_title("Hallucinations by Type (per Encounter)")
     ax.set_ylabel("Count per encounter")
-    ax.tick_params(axis="x", rotation=35)
+    set_run_xticks(ax, x_positions, labels)
     ax.legend()
     ax.grid(axis="y", alpha=0.25)
 
@@ -510,11 +558,11 @@ def make_plot(grouped, output_path):
     colors = ["#B279A2", "#9D755D", "#FF9DA6"]
     for err_type, color in zip(OMISSION_TYPES, colors):
         vals = [sum(x[f"o_{err_type}"] for x in grouped[key]) / len(grouped[key]) for key in keys]
-        ax.bar(labels, vals, bottom=bottom, label=err_type, color=color)
+        ax.bar(x_positions, vals, width=0.72, bottom=bottom, label=err_type, color=color)
         bottom = [a + b for a, b in zip(bottom, vals)]
     ax.set_title("Omissions by Type (per Encounter)")
     ax.set_ylabel("Count per encounter")
-    ax.tick_params(axis="x", rotation=35)
+    set_run_xticks(ax, x_positions, labels)
     ax.legend()
     ax.grid(axis="y", alpha=0.25)
 
@@ -522,11 +570,11 @@ def make_plot(grouped, output_path):
     bottom = [0] * len(keys)
     for severity, color in (("major", "#B23A48"), ("minor", "#F4A261")):
         vals = [sum(x[f"h_{severity}"] for x in grouped[key]) / len(grouped[key]) for key in keys]
-        ax.bar(labels, vals, bottom=bottom, label=severity, color=color)
+        ax.bar(x_positions, vals, width=0.72, bottom=bottom, label=severity, color=color)
         bottom = [a + b for a, b in zip(bottom, vals)]
     ax.set_title("Hallucinations by Severity (per Encounter)")
     ax.set_ylabel("Count per encounter")
-    ax.tick_params(axis="x", rotation=35)
+    set_run_xticks(ax, x_positions, labels)
     ax.legend()
     ax.grid(axis="y", alpha=0.25)
 
@@ -534,11 +582,11 @@ def make_plot(grouped, output_path):
     bottom = [0] * len(keys)
     for severity, color in (("major", "#7B2CBF"), ("minor", "#C77DFF")):
         vals = [sum(x[f"o_{severity}"] for x in grouped[key]) / len(grouped[key]) for key in keys]
-        ax.bar(labels, vals, bottom=bottom, label=severity, color=color)
+        ax.bar(x_positions, vals, width=0.72, bottom=bottom, label=severity, color=color)
         bottom = [a + b for a, b in zip(bottom, vals)]
     ax.set_title("Omissions by Severity (per Encounter)")
     ax.set_ylabel("Count per encounter")
-    ax.tick_params(axis="x", rotation=35)
+    set_run_xticks(ax, x_positions, labels)
     ax.legend()
     ax.grid(axis="y", alpha=0.25)
 
@@ -547,7 +595,7 @@ def make_plot(grouped, output_path):
     plt.close(fig)
 
 
-def write_report(base, report_path, plot_path, rows, bad):
+def write_report(base, report_path, plot_path, rows, bad, evaluator):
     grouped = group_rows(rows)
     score_rows = score_summary_rows(grouped, bad)
     count_rows = count_summary_rows(grouped)
@@ -559,15 +607,15 @@ def write_report(base, report_path, plot_path, rows, bad):
     evaluation_system_prompt = load_evaluation_system_prompt()
 
     lines = [
-        "# Qwen Evaluation Analysis",
+        f"# {evaluator} Evaluation Analysis",
         "",
         f"Base directory: `{base}`",
         "",
-        "This report uses only `evals/Qwen3.5-27B/eval_output.txt` files. MedGemma evaluator outputs are intentionally ignored.",
+        f"This report uses only `evals/{evaluator}/eval_output.txt` files under the final output layout.",
         "",
         "## Evaluation System Prompt",
         "",
-        "The Qwen evaluator used this system prompt:",
+        f"The {evaluator} evaluator used this system prompt:",
         "",
         "```text",
         evaluation_system_prompt,
@@ -597,8 +645,8 @@ def write_report(base, report_path, plot_path, rows, bad):
         "",
         "## Data Quality",
         "",
-        f"- Parsed Qwen eval outputs: `{len(rows)}`",
-        f"- Malformed Qwen eval outputs: `{len(bad)}`",
+        f"- Parsed eval outputs: `{len(rows)}`",
+        f"- Malformed eval outputs: `{len(bad)}`",
         f"- Evaluator score arithmetic failures: `{len(mismatch_details)}` of `{len(rows)}` valid outputs had a self-reported `score` that did not match the rubric score recomputed from its own listed errors.",
         f"- Plot: `{plot_path}`",
         "",
@@ -626,49 +674,68 @@ def write_report(base, report_path, plot_path, rows, bad):
         "",
         "## Negation Examples",
         "",
-        "Examples where a selected generated note says something contradicted by the source dialogue. This table is limited to Qwen3.5-4B, Qwen3.5-9B, Qwen3.5-27B, and MedGemma 0/1-shot. The reference comes from the matched line in `sourcedoc.txt`; only the reference words are bolded.",
+        "Examples where a selected generated note says something contradicted by the source dialogue. The reference comes from the matched line in `sourcedoc.txt`; only the reference words are bolded.",
         "",
         markdown_table(
             ["Run", "Encounter", "Severity", "Model said", "Reference in dialog", "Evaluator explanation"],
             negation_rows,
         ) if negation_rows else "No negation examples could be matched to `sourcedoc.txt`.",
         "",
-        "## MedGemma 1-Shot vs 0-Shot",
-        "",
-        "Both are evaluated by Qwen3.5-27B.",
-        "",
-        "Largest 1-shot improvements:",
-        "",
-        markdown_table(["Encounter", "0-shot", "1-shot", "Delta"], improvements),
-        "",
-        "Largest 1-shot regressions:",
-        "",
-        markdown_table(["Encounter", "0-shot", "1-shot", "Delta"], regressions),
     ]
+    if improvements or regressions:
+        lines.extend([
+            "",
+            "## MedGemma 1-Shot vs 0-Shot",
+            "",
+            f"Both are evaluated by {evaluator}.",
+            "",
+            "Largest 1-shot improvements:",
+            "",
+            markdown_table(["Encounter", "0-shot", "1-shot", "Delta"], improvements),
+            "",
+            "Largest 1-shot regressions:",
+            "",
+            markdown_table(["Encounter", "0-shot", "1-shot", "Delta"], regressions),
+        ])
     report_path.write_text("\n".join(lines))
+
+
+def default_evaluator():
+    try:
+        config = load_config(CONFIG_PATH)
+        eval_model_name = config["active_eval_model"]
+        return config["models"][eval_model_name]["modelname"]
+    except Exception:
+        return "Qwen3.5-27B"
+
+
+def safe_prefix(value):
+    return re.sub(r"[^A-Za-z0-9_.-]+", "_", value).strip("_")
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--base-dir", default="outputs/aces/20260501")
-    parser.add_argument("--evaluator", default="Qwen3.5-27B")
+    parser.add_argument("--base-dir", default="outputs/final")
+    parser.add_argument("--evaluator", default=None)
     parser.add_argument("--output-dir", default="analysis")
-    parser.add_argument("--prefix", default="qwen_eval_analysis_20260501")
+    parser.add_argument("--prefix", default=None)
     args = parser.parse_args()
 
     base = Path(args.base_dir)
+    evaluator = args.evaluator or default_evaluator()
+    prefix = args.prefix or f"{safe_prefix(evaluator)}_eval_analysis"
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    report_path = output_dir / f"{args.prefix}.md"
-    plot_path = output_dir / f"{args.prefix}.png"
+    report_path = output_dir / f"{prefix}.md"
+    plot_path = output_dir / f"{prefix}.png"
 
-    rows, bad = load_rows(base, args.evaluator)
+    rows, bad = load_rows(base, evaluator)
     grouped = group_rows(rows)
     if not rows:
-        raise SystemExit(f"No valid eval rows found under {base} for evaluator {args.evaluator}")
+        raise SystemExit(f"No valid eval rows found under {base} for evaluator {evaluator}")
 
     make_plot(grouped, plot_path)
-    write_report(base, report_path, plot_path, rows, bad)
+    write_report(base, report_path, plot_path, rows, bad, evaluator)
 
     print(f"Wrote {report_path}")
     print(f"Wrote {plot_path}")

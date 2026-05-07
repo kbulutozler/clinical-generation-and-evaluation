@@ -46,8 +46,7 @@ def main():
     test = read_csv(data_dir / f"{args.test_split}.csv")
 
     for n_shots in args.shots:
-        out_dir = PROMPTS_DIR / "aci_bench" / f"{args.test_split}_{n_shots}shot"
-        out_dir.mkdir(parents=True, exist_ok=True)
+        exp_name = f"{args.test_split}_{n_shots}shot"
 
         for sample in test:
             shot_examples = random.sample(train, n_shots) if n_shots > 0 else []
@@ -57,9 +56,11 @@ def main():
                 "messages": messages,
                 "target": sample["note"],
             }
-            (out_dir / f"{sample['encounter_id']}.json").write_text(json.dumps(payload, indent=2))
+            out_dir = PROMPTS_DIR / args.dataset / sample["encounter_id"] / exp_name
+            out_dir.mkdir(parents=True, exist_ok=True)
+            (out_dir / "prompt.json").write_text(json.dumps(payload, indent=2))
 
-        print(f"{n_shots}-shot: {len(test)} prompts -> {out_dir}")
+        print(f"{n_shots}-shot: {len(test)} prompts -> {PROMPTS_DIR / args.dataset / '<encounter_id>' / exp_name / 'prompt.json'}")
 
 
 if __name__ == "__main__":

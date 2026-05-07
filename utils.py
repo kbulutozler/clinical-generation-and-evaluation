@@ -48,11 +48,16 @@ def build_llm_kwargs(model_cfg: dict) -> dict:
 
 
 def extract_thinking(output_text: str):
-    """Split output on </think>: everything before is thinking, everything after is response."""
+    """Split thinking traces from model output when known delimiters are present."""
     if "</think>" in output_text:
         thinking_text, output_text = output_text.split("</think>", 1)
         thinking_text = thinking_text.replace("<think>", "").strip()
-        output_text = output_text.strip()
-    else:
-        thinking_text = ""
-    return output_text, thinking_text
+        return output_text.strip(), thinking_text.strip()
+
+    gemma_start = "<|channel>thought"
+    gemma_end = "<channel|>"
+    if output_text.startswith(gemma_start) and gemma_end in output_text:
+        thinking_text, output_text = output_text[len(gemma_start):].split(gemma_end, 1)
+        return output_text.strip(), thinking_text.strip()
+
+    return output_text, ""

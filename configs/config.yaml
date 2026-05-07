@@ -1,8 +1,123 @@
-active_model: "google/medgemma-27b-text-it"
-active_eval_model: "google/medgemma-27b-text-it"
+active_model: "google/gemma-4-E2B-it"
+active_eval_model: "google/gemma-4-31B-it"
 active_model_thinking: True
 
 models:
+
+  google/gemma-4-E2B-it:
+    modelname: "gemma-4-E2B-it"
+    path: "google/gemma-4-E2B-it"
+    load:
+      dtype: "bfloat16"
+      tensor_parallel_size: 1
+      gpu_memory_utilization: 0.9
+      max_model_len: 32768
+    generation:
+      thinking:
+        temperature: 1.0
+        top_p: 0.95
+        top_k: 64
+        min_p: 0.0
+        presence_penalty: 0.0
+        repetition_penalty: 1.0
+        max_tokens: null
+      non_thinking:
+        temperature: 1.0
+        top_p: 0.95
+        top_k: 64
+        min_p: 0.0
+        presence_penalty: 0.0
+        repetition_penalty: 1.0
+        max_tokens: null
+
+  google/gemma-4-E4B-it:
+    modelname: "gemma-4-E4B-it"
+    path: "google/gemma-4-E4B-it"
+    load:
+      dtype: "bfloat16"
+      tensor_parallel_size: 1
+      gpu_memory_utilization: 0.9
+      max_model_len: 32768
+    generation:
+      thinking:
+        temperature: 1.0
+        top_p: 0.95
+        top_k: 64
+        min_p: 0.0
+        presence_penalty: 0.0
+        repetition_penalty: 1.0
+        max_tokens: null
+      non_thinking:
+        temperature: 1.0
+        top_p: 0.95
+        top_k: 64
+        min_p: 0.0
+        presence_penalty: 0.0
+        repetition_penalty: 1.0
+        max_tokens: null
+
+  google/gemma-4-26B-A4B-it:
+    modelname: "gemma-4-26B-A4B-it"
+    path: "google/gemma-4-26B-A4B-it"
+    load:
+      dtype: "bfloat16"
+      tensor_parallel_size: 1
+      gpu_memory_utilization: 0.9
+      max_model_len: 32768
+      # Largest batch size captured with CUDA graphs; lower values reduce graph memory.
+      max_cudagraph_capture_size: 64
+      # Max active sequences vLLM schedules; keep below available Mamba/KV cache blocks.
+      max_num_seqs: 128
+      kv_cache_dtype: "fp8"
+    generation:
+      thinking:
+        temperature: 1.0
+        top_p: 0.95
+        top_k: 64
+        min_p: 0.0
+        presence_penalty: 0.0
+        repetition_penalty: 1.0
+        max_tokens: null
+      non_thinking:
+        temperature: 1.0
+        top_p: 0.95
+        top_k: 64
+        min_p: 0.0
+        presence_penalty: 0.0
+        repetition_penalty: 1.0
+        max_tokens: null
+
+  google/gemma-4-31B-it:
+    modelname: "gemma-4-31B-it"
+    path: "google/gemma-4-31B-it"
+    load:
+      dtype: "bfloat16"
+      tensor_parallel_size: 1
+      gpu_memory_utilization: 0.9
+      max_model_len: 32768
+      # Largest batch size captured with CUDA graphs; lower values reduce graph memory.
+      max_cudagraph_capture_size: 64
+      # Max active sequences vLLM schedules; keep below available Mamba/KV cache blocks.
+      max_num_seqs: 128
+      kv_cache_dtype: "fp8"
+    generation:
+      thinking:
+        temperature: 1.0
+        top_p: 0.95
+        top_k: 64
+        min_p: 0.0
+        presence_penalty: 0.0
+        repetition_penalty: 1.0
+        max_tokens: null
+      non_thinking:
+        temperature: 1.0
+        top_p: 0.95
+        top_k: 64
+        min_p: 0.0
+        presence_penalty: 0.0
+        repetition_penalty: 1.0
+        max_tokens: null
+
   google/medgemma-27b-text-it:
     modelname: "medgemma-27b-text-it"
     path: "google/medgemma-27b-text-it"

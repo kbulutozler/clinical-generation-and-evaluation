@@ -1,5 +1,12 @@
 outputs/
 logs/
+docs/
+prompts/aci_bench/
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+slurm/
+Makefile
 .claude/
 dotfiles/
 __pycache__/

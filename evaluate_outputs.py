@@ -1,14 +1,14 @@
 import json
 import sys
 import time
+import argparse
 from datetime import datetime
 from pathlib import Path
-
-from vllm import LLM, SamplingParams
 
 from utils import load_config, build_llm_kwargs, extract_thinking
 
 CONFIG_PATH = Path("configs/config.yaml")
+FINAL_OUTPUTS_DIR = Path("outputs") / "final"
 
 
 def fmt_time(seconds):
@@ -17,17 +17,38 @@ def fmt_time(seconds):
     return f"{m}m {s}s"
 
 
-def main():
-    if len(sys.argv) != 3:
-        print("Usage: python3 evaluate_outputs.py <exp_dir> <eval_prompt_template>")
-        print("  e.g. python3 evaluate_outputs.py outputs/20260423/Qwen3.5-4B/aci_bench/clinicalnlp_taskB_test1_0shot prompts/evaluation/eval_prompt_template.json")
-        sys.exit(1)
+def discover_generation_outputs(dataset_dir):
+    entries = []
+    for output_path in sorted(dataset_dir.glob("*/*/*/output.txt")):
+        leaf_dir = output_path.parent
+        try:
+            encounter_id, modelname, testsplit_nshot = leaf_dir.relative_to(dataset_dir).parts
+        except ValueError:
+            continue
+        entries.append({
+            "encounter_id": encounter_id,
+            "modelname": modelname,
+            "testsplit_nshot": testsplit_nshot,
+            "leaf_dir": leaf_dir,
+            "output_path": output_path,
+        })
+    return sorted(entries, key=lambda item: (item["encounter_id"], item["modelname"], item["testsplit_nshot"]))
 
-    exp_dir = Path(sys.argv[1])
-    eval_prompt_path = Path(sys.argv[2])
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("dataset", help="Dataset name under outputs/final (e.g. aci_bench)")
+    parser.add_argument("eval_prompt_template", help="Evaluation prompt template JSON")
+    args = parser.parse_args()
+
+    dataset_dir = FINAL_OUTPUTS_DIR / args.dataset
+    eval_prompt_path = Path(args.eval_prompt_template)
 
     if not eval_prompt_path.exists():
         print(f"Eval prompt template not found: {eval_prompt_path}")
+        sys.exit(1)
+    if not dataset_dir.exists():
+        print(f"Final dataset output directory not found: {dataset_dir}")
         sys.exit(1)
 
     eval_prompt = json.loads(eval_prompt_path.read_text())
@@ -41,22 +62,23 @@ def main():
     enable_thinking = config.get("active_model_thinking", False)
     gen = eval_model_cfg["generation"]["thinking" if enable_thinking else "non_thinking"]
 
-    enc_dirs = sorted([d for d in exp_dir.iterdir() if d.is_dir() and d.name != "evals"])
+    entries = discover_generation_outputs(dataset_dir)
 
-    if not enc_dirs:
-        print(f"No encounter directories found in {exp_dir}")
+    if not entries:
+        print(f"No generation outputs found under {dataset_dir}")
         sys.exit(1)
 
-    # build messages for all encounters
     all_messages = []
-    valid_dirs = []
-    for enc_dir in enc_dirs:
-        sourcedoc_path = enc_dir / "sourcedoc.txt"
-        sourcetarget_path = enc_dir / "sourcetarget.txt"
-        output_path = enc_dir / "output.txt"
+    valid_entries = []
+    for entry in entries:
+        leaf_dir = entry["leaf_dir"]
+        sourcedoc_path = leaf_dir / "sourcedoc.txt"
+        sourcetarget_path = leaf_dir / "sourcetarget.txt"
+        output_path = entry["output_path"]
 
         if not sourcedoc_path.exists() or not sourcetarget_path.exists() or not output_path.exists():
-            print(f"[WARN] {enc_dir.name}: missing required files — skipping")
+            rel_leaf = leaf_dir.relative_to(dataset_dir)
+            print(f"[WARN] {rel_leaf}: missing required files; skipping")
             continue
 
         user_content = user_template.format(
@@ -68,11 +90,13 @@ def main():
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_content},
         ])
-        valid_dirs.append(enc_dir)
+        valid_entries.append(entry)
 
-    if not valid_dirs:
-        print("No valid encounters to evaluate.")
+    if not valid_entries:
+        print("No valid generation outputs to evaluate.")
         sys.exit(1)
+
+    from vllm import LLM, SamplingParams
 
     llm_kwargs = build_llm_kwargs(eval_model_cfg)
     load_start = time.time()
@@ -99,30 +123,37 @@ def main():
         "timestamp": timestamp,
         "eval_model": eval_model_name,
         "eval_modelname": eval_model_short,
+        "dataset": args.dataset,
+        "base_dir": str(FINAL_OUTPUTS_DIR),
         "eval_prompt": str(eval_prompt_path),
         "thinking": enable_thinking,
         "load": eval_model_cfg["load"],
         "generation": gen,
-        "num_evaluated": len(valid_dirs),
+        "num_evaluated": len(valid_entries),
+        "evaluated_outputs": [
+            str(entry["leaf_dir"].relative_to(FINAL_OUTPUTS_DIR))
+            for entry in valid_entries
+        ],
         "model_load_time": load_time,
         "inference_time": infer_time,
     }
-    eval_batch_dir = exp_dir / "evals" / eval_model_short
+    eval_batch_dir = dataset_dir / "evals" / eval_model_short
     eval_batch_dir.mkdir(parents=True, exist_ok=True)
     (eval_batch_dir / "_eval_batch_metadata.json").write_text(json.dumps(batch_metadata, indent=2))
 
-    for i, (enc_dir, output) in enumerate(zip(valid_dirs, outputs)):
+    for i, (entry, output) in enumerate(zip(valid_entries, outputs)):
         output_text, thinking_text = extract_thinking(output.outputs[0].text or "")
 
-        eval_dir = enc_dir / "evals" / eval_model_short
+        eval_dir = entry["leaf_dir"] / "evals" / eval_model_short
         eval_dir.mkdir(parents=True, exist_ok=True)
         if thinking_text:
             (eval_dir / "eval_thinking.txt").write_text(thinking_text)
         (eval_dir / "eval_output.txt").write_text(output_text)
 
-        print(f"[{i+1}/{len(valid_dirs)}] {enc_dir.name}")
+        label = f"{entry['encounter_id']} {entry['modelname']} {entry['testsplit_nshot']}"
+        print(f"[{i+1}/{len(valid_entries)}] {label}")
 
-    print(f"Done. Evaluated {len(valid_dirs)} encounters.")
+    print(f"Done. Evaluated {len(valid_entries)} generation outputs.")
     print(f"Model load: {load_time} | Inference: {infer_time}")
 
 

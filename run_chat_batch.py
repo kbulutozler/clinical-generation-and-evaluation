@@ -4,8 +4,6 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from vllm import LLM, SamplingParams
-
 from utils import load_config, get_model_config, build_llm_kwargs, extract_thinking
 
 CONFIG_PATH = Path("configs/config.yaml")
@@ -19,24 +17,27 @@ def fmt_time(seconds):
 
 
 def main():
-    if len(sys.argv) not in (2, 3):
-        print("Usage: python3 run_chat_batch.py <prompts_dir> [encounter_id]")
+    if len(sys.argv) not in (3, 4):
+        print("Usage: python3 run_chat_batch.py <dataset> <testsplit_nshot> [encounter_id]")
+        print("  e.g. python3 run_chat_batch.py aci_bench clinicalnlp_taskB_test1_0shot")
         sys.exit(1)
 
-    prompts_dir = Path(sys.argv[1])
-    encounter_id_filter = sys.argv[2] if len(sys.argv) == 3 else None
+    dataset_name = sys.argv[1]
+    exp_name = sys.argv[2]
+    encounter_id_filter = sys.argv[3] if len(sys.argv) == 4 else None
+    prompts_root = Path("prompts") / dataset_name
 
     if encounter_id_filter:
-        target = prompts_dir / f"{encounter_id_filter}.json"
+        target = prompts_root / encounter_id_filter / exp_name / "prompt.json"
         if not target.exists():
-            print(f"No file found for encounter_id '{encounter_id_filter}' in {prompts_dir}")
+            print(f"No prompt found for encounter_id '{encounter_id_filter}' at {target}")
             sys.exit(1)
         prompt_files = [target]
     else:
-        prompt_files = sorted(prompts_dir.glob("*.json"))
+        prompt_files = sorted(prompts_root.glob(f"*/{exp_name}/prompt.json"))
 
     if not prompt_files:
-        print(f"No JSON files found in {prompts_dir}")
+        print(f"No prompt files found under {prompts_root} for {exp_name}")
         sys.exit(1)
 
     config = load_config(CONFIG_PATH)
@@ -47,6 +48,8 @@ def main():
     all_messages = [p["messages"] for p in payloads]
 
     gen = model["generation"]["thinking" if enable_thinking else "non_thinking"]
+
+    from vllm import LLM, SamplingParams
 
     llm_kwargs = build_llm_kwargs(model)
     load_start = time.time()
@@ -68,25 +71,27 @@ def main():
                        chat_template_kwargs={"enable_thinking": enable_thinking})
     infer_time = fmt_time(time.time() - infer_start)
 
-    date = datetime.now().strftime("%Y%m%d")
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     model_short = model["modelname"]
-    dataset_name = prompts_dir.parent.name
-    exp_name = prompts_dir.name
-    exp_dir = OUTPUTS_DIR / date / model_short / dataset_name / exp_name
-    exp_dir.mkdir(parents=True, exist_ok=True)
+    run_dir = OUTPUTS_DIR / timestamp / dataset_name
+    metadata_dir = run_dir / "_batch_metadata" / model_short
+    metadata_dir.mkdir(parents=True, exist_ok=True)
 
     batch_metadata = {
         "timestamp": timestamp,
         "model": model["name"],
+        "modelname": model_short,
+        "dataset": dataset_name,
+        "testsplit_nshot": exp_name,
         "thinking": enable_thinking,
         "load": model["load"],
         "generation": gen,
         "num_prompts": len(prompt_files),
+        "prompt_files": [str(path) for path in prompt_files],
         "model_load_time": load_time,
         "inference_time": infer_time,
     }
-    (exp_dir / "_batch_metadata.json").write_text(json.dumps(batch_metadata, indent=2))
+    (metadata_dir / f"{exp_name}.json").write_text(json.dumps(batch_metadata, indent=2))
 
     for i, (payload, output) in enumerate(zip(payloads, outputs)):
         enc_id = payload["encounter_id"]
@@ -96,7 +101,7 @@ def main():
             print(f"[WARN] {enc_id}: empty response from model — skipping")
             continue
 
-        out_dir = exp_dir / enc_id
+        out_dir = run_dir / enc_id / model_short / exp_name
         out_dir.mkdir(parents=True, exist_ok=True)
 
         (out_dir / "output.txt").write_text(output_text)
@@ -109,7 +114,7 @@ def main():
 
         print(f"[{i+1}/{len(prompt_files)}] {enc_id}")
 
-    print(f"Done. Outputs saved to {exp_dir}")
+    print(f"Done. Outputs saved to {run_dir}")
 
 
 if __name__ == "__main__":

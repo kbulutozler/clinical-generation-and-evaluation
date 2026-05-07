@@ -1,8 +1,0 @@
-name: clinical-generation-and-evaluation
-channels:
-  - defaults
-dependencies:
-  - python=3.11
-  - pip
-  - pip:
-    - pyyaml
