@@ -50,7 +50,7 @@ uv run --with pyyaml --with matplotlib python3 analyze.py --evaluator Qwen3.5-27
 
 ## Model Families
 
-Generation models in `configs/config.yaml`:
+Generation models in [configs/config.yaml](configs/config.yaml):
 
 - `google/gemma-4-E2B-it`
 - `google/gemma-4-E4B-it`
@@ -62,14 +62,14 @@ Generation models in `configs/config.yaml`:
 - `Qwen/Qwen3.5-9B`
 - `Qwen/Qwen3.5-27B`
 
-Evaluation models in `configs/config.yaml`:
+Evaluation models in [configs/config.yaml](configs/config.yaml):
 
 - `google/gemma-4-31B-it`
 - `Qwen/Qwen3.5-27B`
 
 ## Evaluation Snapshot
 
-These means come from the current analysis artifacts in `analysis/Qwen3.5-27B_eval_analysis.md` and `analysis/gemma-4-31B-it_eval_analysis.md`. Check these files for further details in current results. 
+These means come from the current analysis artifacts in [analysis/Qwen3.5-27B_eval_analysis.md](analysis/Qwen3.5-27B_eval_analysis.md) and [analysis/gemma-4-31B-it_eval_analysis.md](analysis/gemma-4-31B-it_eval_analysis.md). Check these files for further details in current results.
 
 
 | Generation run              | Evaluator: Qwen3.5-27B mean | Evaluator: gemma-4-31B-it mean |
@@ -95,7 +95,7 @@ Asgari et al. (2025), "A framework to assess clinical safety and hallucination r
 
 ## Configuration
 
-Edit `configs/config.yaml` to choose the active generation model, active evaluation model, and model-specific load and sampling settings.
+Edit [configs/config.yaml](configs/config.yaml) to choose the active generation model, active evaluation model, and model-specific load and sampling settings.
 
 Generation and evaluation require a GPU, preferably 80gb vram A100/H100.
 
