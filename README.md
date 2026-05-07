@@ -87,7 +87,7 @@ These means come from the current analysis artifacts in `analysis/Qwen3.5-27B_ev
 
 ## Eval Prompt
 
-The evaluation template lives at [prompts/evaluation/eval_prompt_template.json](/Users/bulut/Dropbox/repositories/hpc-sync/clinical-generation-and-evaluation/prompts/evaluation/eval_prompt_template.json).
+The evaluation template lives at [prompts/evaluation/eval_prompt_template.json](prompts/evaluation/eval_prompt_template.json).
 
 The prompt structure was inspired by:
 
