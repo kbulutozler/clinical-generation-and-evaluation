@@ -10,11 +10,17 @@ from pathlib import Path
 
 REQUIRED = [
     Path("gepa/run_gepa_pipeline.py"),
-    Path("gepa/check_vllm_servers.py"),
-    Path("gepa/start_vllm_servers.sh"),
-    Path("gepa/stop_vllm_servers.sh"),
-    Path("gepa/evaluator_prompt_template.json"),
-    Path("gepa/RUNBOOK.md"),
+    Path("gepa/servers/check_vllm_servers.py"),
+    Path("gepa/servers/vllm_model_flags.py"),
+    Path("gepa/plot_gepa_run.py"),
+    Path("gepa/prepare_gepa_prompts.py"),
+    Path("gepa/servers/start_vllm_servers.sh"),
+    Path("gepa/servers/stop_vllm_servers.sh"),
+    Path("gepa/prompts/evaluator_prompt_template.json"),
+    Path("gepa/prompts/generation_seed_prompt.txt"),
+    Path("gepa/config.yaml"),
+    Path("gepa/README.md"),
+    Path("gepa/docs/RUNBOOK.md"),
 ]
 
 
@@ -25,32 +31,53 @@ def main() -> None:
             raise SystemExit(f"Missing required file: {path}")
         passed += 1
 
-    for path in (Path("gepa/run_gepa_pipeline.py"), Path("gepa/check_vllm_servers.py")):
+    for path in (
+        Path("gepa/run_gepa_pipeline.py"),
+        Path("gepa/servers/check_vllm_servers.py"),
+        Path("gepa/servers/vllm_model_flags.py"),
+        Path("gepa/plot_gepa_run.py"),
+        Path("gepa/prepare_gepa_prompts.py"),
+    ):
         py_compile.compile(str(path), doraise=True)
         passed += 1
 
-    prompt = json.loads(Path("gepa/evaluator_prompt_template.json").read_text())
+    prompt = json.loads(Path("gepa/prompts/evaluator_prompt_template.json").read_text())
     rendered = prompt["messages"][1]["content"].format(
-        sourcedoc="dialogue",
-        sourcetarget="reference",
-        generated_note="generated",
+        source="dialogue",
+        target="reference",
+        generated_target="generated",
     )
     if "dialogue" not in rendered or "generated" not in rendered:
         raise SystemExit("Evaluator template placeholders did not render.")
     passed += 1
 
-    runbook = Path("gepa/RUNBOOK.md").read_text()
+    import yaml
+
+    gepa_config = yaml.safe_load(Path("gepa/config.yaml").read_text())
+    if gepa_config["data"]["dataset"] != "gepa":
+        raise SystemExit("GEPA config should use prepared prompts dataset: gepa")
+    passed += 1
+
+    runbook = Path("gepa/docs/RUNBOOK.md").read_text()
     for token in (
         "sinteractive -p ai",
         "--gpus-per-node=2",
-        "gepa/start_vllm_servers.sh",
+        "gepa/servers/start_vllm_servers.sh",
         "gepa/run_gepa_pipeline.py",
-        "Qwen/Qwen3.5-2B",
-        "google/gemma-4-E4B-it",
-        "google/gemma-4-26B-A4B-it",
+        "traces/rollouts.jsonl",
+        "gepa/prepare_gepa_prompts.py",
+        "--gepa-config gepa/config.yaml",
+        "vllm_model_flags.py --serve-plan",
+        "config_snapshot",
     ):
         if token not in runbook:
             raise SystemExit(f"Runbook missing token: {token}")
+    passed += 1
+
+    readme = Path("gepa/README.md").read_text()
+    for token in ("prepare_gepa_prompts.py", "run_gepa_pipeline.py", "config.yaml", "plot_gepa_run.py"):
+        if token not in readme:
+            raise SystemExit(f"README missing token: {token}")
     passed += 1
 
     print(passed)

@@ -1,5 +1,5 @@
+import argparse
 import json
-import sys
 import time
 from datetime import datetime
 from pathlib import Path
@@ -17,14 +17,20 @@ def fmt_time(seconds):
 
 
 def main():
-    if len(sys.argv) not in (3, 4):
-        print("Usage: python3 run_chat_batch.py <dataset> <testsplit_nshot> [encounter_id]")
-        print("  e.g. python3 run_chat_batch.py aci_bench clinicalnlp_taskB_test1_0shot")
-        sys.exit(1)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("dataset", help="Dataset name under prompts/ (e.g. aci_bench)")
+    parser.add_argument("testsplit_nshot", help="Prompt split directory name")
+    parser.add_argument("encounter_id", nargs="?", help="Optional encounter_id to run")
+    parser.add_argument(
+        "--model",
+        default=None,
+        help="Optional model key from configs/config.yaml; overrides active_model",
+    )
+    args = parser.parse_args()
 
-    dataset_name = sys.argv[1]
-    exp_name = sys.argv[2]
-    encounter_id_filter = sys.argv[3] if len(sys.argv) == 4 else None
+    dataset_name = args.dataset
+    exp_name = args.testsplit_nshot
+    encounter_id_filter = args.encounter_id
     prompts_root = Path("prompts") / dataset_name
 
     if encounter_id_filter:
@@ -38,10 +44,13 @@ def main():
 
     if not prompt_files:
         print(f"No prompt files found under {prompts_root} for {exp_name}")
-        sys.exit(1)
+        raise SystemExit(1)
 
     config = load_config(CONFIG_PATH)
-    model = get_model_config(config)
+    try:
+        model = get_model_config(config, args.model)
+    except ValueError as exc:
+        parser.error(str(exc))
     enable_thinking = config.get("active_model_thinking", False)
 
     payloads = [json.loads(f.read_text()) for f in prompt_files]
@@ -71,7 +80,7 @@ def main():
                        chat_template_kwargs={"enable_thinking": enable_thinking})
     infer_time = fmt_time(time.time() - infer_start)
 
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    timestamp = datetime.now().strftime("%Y%m%d")
     model_short = model["modelname"]
     run_dir = OUTPUTS_DIR / timestamp / dataset_name
     metadata_dir = run_dir / "_batch_metadata" / model_short
@@ -81,6 +90,7 @@ def main():
         "timestamp": timestamp,
         "model": model["name"],
         "modelname": model_short,
+        "model_override": args.model,
         "dataset": dataset_name,
         "testsplit_nshot": exp_name,
         "thinking": enable_thinking,

@@ -1,3 +1,0 @@
-iteration	status	verify	metric	notes
-0	baseline	uv run --with pyyaml python3 gepa/verify_pipeline.py	0	gepa folder did not exist before this task
-1	keep	uv run --with pyyaml python3 gepa/verify_pipeline.py	10	static verifier passed; mock pipeline produced one output artifact

@@ -97,6 +97,8 @@ Asgari et al. (2025), "A framework to assess clinical safety and hallucination r
 
 Edit [configs/config.yaml](configs/config.yaml) to choose the active generation model, active evaluation model, and model-specific load and sampling settings.
 
+`run_chat_batch.py --model <config_model_key>` overrides `active_model` for one generation run. `evaluate_outputs.py --eval-model <config_model_key>` overrides `active_eval_model` for one evaluation run.
+
 Generation and evaluation require a GPU, preferably 80gb vram A100/H100.
 
 For generation and evaluation scripts, use the official vLLM Docker image tag `vllm/vllm-openai:v0.20.0`. The matching official docs are here: [Using Docker - vLLM v0.20.0](https://docs.vllm.ai/en/v0.20.0/deployment/docker/).

@@ -1,0 +1,29 @@
+data:
+  dataset: gepa
+  train_split: train
+  val_split: valid
+  train_n: 50
+  val_n: 20
+  sampling_seed: 31
+
+models:
+  generation_model: Qwen/Qwen3.5-2B
+  evaluator_model: google/gemma-4-26B-A4B-it
+  reflector_model: google/gemma-4-26B-A4B-it
+
+endpoints:
+  generation_url: http://127.0.0.1:8010/v1
+  evaluator_url: http://127.0.0.1:8011/v1
+  reflector_url: http://127.0.0.1:8011/v1
+
+gepa:
+  max_metric_calls: 200
+  reflection_minibatch_size: 5
+  candidate_selection_strategy: pareto
+  frontier_type: hybrid
+  engine_seed: 31
+paths:
+  repo_config: configs/config.yaml
+  seed_prompt: gepa/prompts/generation_seed_prompt.txt
+  eval_prompt: gepa/prompts/evaluator_prompt_template.json
+  run_dir: outputs/gepa_trainval

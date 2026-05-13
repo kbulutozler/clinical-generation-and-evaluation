@@ -15,11 +15,23 @@ def get_local_dataset_path(config: dict, dataset: str) -> Path:
     return Path(paths["local"]).expanduser()
 
 
-def get_model_config(config: dict) -> dict:
-    """Return the active model's config with name injected."""
-    name = config["active_model"]
+def get_named_model_config(config: dict, name: str) -> dict:
+    """Return a named model's config with name injected."""
+    if name not in config["models"]:
+        available = ", ".join(sorted(config["models"]))
+        raise ValueError(f"Unknown model '{name}'. Available models: {available}")
     model_cfg = config["models"][name]
     return {"name": name, **model_cfg}
+
+
+def get_model_config(config: dict, name: str | None = None) -> dict:
+    """Return the active or overridden generation model config."""
+    return get_named_model_config(config, name or config["active_model"])
+
+
+def get_eval_model_config(config: dict, name: str | None = None) -> dict:
+    """Return the active or overridden evaluator model config."""
+    return get_named_model_config(config, name or config["active_eval_model"])
 
 
 def build_llm_kwargs(model_cfg: dict) -> dict:

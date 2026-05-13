@@ -5,7 +5,7 @@ import argparse
 from datetime import datetime
 from pathlib import Path
 
-from utils import load_config, build_llm_kwargs, extract_thinking
+from utils import load_config, get_eval_model_config, build_llm_kwargs, extract_thinking
 
 CONFIG_PATH = Path("configs/config.yaml")
 FINAL_OUTPUTS_DIR = Path("outputs") / "final"
@@ -39,6 +39,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("dataset", help="Dataset name under outputs/final (e.g. aci_bench)")
     parser.add_argument("eval_prompt_template", help="Evaluation prompt template JSON")
+    parser.add_argument(
+        "--eval-model",
+        default=None,
+        help="Optional model key from configs/config.yaml; overrides active_eval_model",
+    )
     args = parser.parse_args()
 
     dataset_dir = FINAL_OUTPUTS_DIR / args.dataset
@@ -56,8 +61,11 @@ def main():
     user_template = eval_prompt["messages"][1]["content"]
 
     config = load_config(CONFIG_PATH)
-    eval_model_name = config["active_eval_model"]
-    eval_model_cfg = config["models"][eval_model_name]
+    try:
+        eval_model_cfg = get_eval_model_config(config, args.eval_model)
+    except ValueError as exc:
+        parser.error(str(exc))
+    eval_model_name = eval_model_cfg["name"]
     eval_model_short = eval_model_cfg["modelname"]
     enable_thinking = config.get("active_model_thinking", False)
     gen = eval_model_cfg["generation"]["thinking" if enable_thinking else "non_thinking"]
@@ -123,6 +131,7 @@ def main():
         "timestamp": timestamp,
         "eval_model": eval_model_name,
         "eval_modelname": eval_model_short,
+        "eval_model_override": args.eval_model,
         "dataset": args.dataset,
         "base_dir": str(FINAL_OUTPUTS_DIR),
         "eval_prompt": str(eval_prompt_path),
