@@ -1,6 +1,12 @@
 outputs/
 logs/
 docs/
+gepa/servers/pids/
+gepa/docs/ANVIL_QUICKSTART.md
+gepa/docs/RUNBOOK.md
+gepa/docs/gepa_paper.md
+gepa/**/__pycache__/
+gepa/**/*.py[cod]
 prompts/aci_bench/
 AGENTS.md
 CLAUDE.md

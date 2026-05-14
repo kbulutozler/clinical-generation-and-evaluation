@@ -1,0 +1,4 @@
+interface:
+  display_name: "Anvil Batch Inference"
+  short_description: "Run queue-safe Anvil vLLM batch inference for this repo."
+  default_prompt: "Run queue-safe Anvil batch inference for selected configured models."

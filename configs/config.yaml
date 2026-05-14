@@ -1,4 +1,4 @@
-active_model: "google/gemma-4-E2B-it"
+active_model: "Qwen/Qwen3.5-2B"
 active_eval_model: "google/gemma-4-31B-it"
 active_model_thinking: True
 
@@ -62,8 +62,8 @@ models:
     load:
       dtype: "bfloat16"
       tensor_parallel_size: 1
-      gpu_memory_utilization: 0.9
-      max_model_len: 32768
+      gpu_memory_utilization: 0.95
+      max_model_len: 65536
       # Largest batch size captured with CUDA graphs; lower values reduce graph memory.
       max_cudagraph_capture_size: 64
       # Max active sequences vLLM schedules; keep below available Mamba/KV cache blocks.
@@ -93,8 +93,8 @@ models:
     load:
       dtype: "bfloat16"
       tensor_parallel_size: 1
-      gpu_memory_utilization: 0.9
-      max_model_len: 32768
+      gpu_memory_utilization: 0.95
+      max_model_len: 65536
       # Largest batch size captured with CUDA graphs; lower values reduce graph memory.
       max_cudagraph_capture_size: 64
       # Max active sequences vLLM schedules; keep below available Mamba/KV cache blocks.
