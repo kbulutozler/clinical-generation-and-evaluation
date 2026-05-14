@@ -26,4 +26,4 @@ paths:
   repo_config: configs/config.yaml
   seed_prompt: gepa/prompts/generation_seed_prompt.txt
   eval_prompt: gepa/prompts/evaluator_prompt_template.json
-  run_dir: outputs/gepa_trainval
+  run_dir: outputs/optimizers/gepa

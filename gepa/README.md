@@ -69,7 +69,7 @@ sbatch slurm/gepa_run.slurm
 
 ```bash
 make pull-anvil
-uv run --with matplotlib python3 gepa/plot_gepa_run.py outputs/anvil/gepa_trainval/<timestamp>
+uv run --with matplotlib python3 gepa/plot_gepa_run.py outputs/optimizers/gepa/<timestamp>
 ```
 
 ## Configuration
@@ -81,7 +81,7 @@ See `config.yaml` for data sizes, GEPA budgets, **`models`** and **`endpoints`**
 | ------------------------------ | ------ |
 | `train_n`                      | 50     |
 | `val_n`                        | 20     |
-| `max_metric_calls`             | 300    |
+| `max_metric_calls`             | 200    |
 | `reflection_minibatch_size`    | 5      |
 | `candidate_selection_strategy` | pareto |
 | `frontier_type`                | hybrid |
